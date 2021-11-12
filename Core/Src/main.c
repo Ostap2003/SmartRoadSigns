@@ -101,7 +101,7 @@ void WS2812_Send (void)
 		{
 			if (color&(1<<i))
 			{
-				pwmData[indx] = 6; // if the bit is 1, the duty cycle is 64% (64% of 90)
+				pwmData[indx] = 6; // if the bit is 1, the duty cycle is 64%
 			}
 
 			else pwmData[indx] = 3;  // if the bit is 0, the duty cycle is 32%
