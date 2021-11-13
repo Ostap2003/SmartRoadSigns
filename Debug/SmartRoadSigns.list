@@ -216,18 +216,18 @@ void WS2812_Send (void)
  8000218:	2b00      	cmp	r3, #0
  800021a:	d005      	beq.n	8000228 <WS2812_Send+0x5c>
 			{
-				pwmData[indx] = 6; // if the bit is 1, the duty cycle is 64% (64% of 90)
+				pwmData[indx] = 57; // if the bit is 1, the duty cycle is 64%
  800021c:	4a1f      	ldr	r2, [pc, #124]	; (800029c <WS2812_Send+0xd0>)
  800021e:	697b      	ldr	r3, [r7, #20]
- 8000220:	2106      	movs	r1, #6
+ 8000220:	2139      	movs	r1, #57	; 0x39
  8000222:	f822 1013 	strh.w	r1, [r2, r3, lsl #1]
  8000226:	e004      	b.n	8000232 <WS2812_Send+0x66>
 			}
 
-			else pwmData[indx] = 3;  // if the bit is 0, the duty cycle is 32%
+			else pwmData[indx] = 28;  // if the bit is 0, the duty cycle is 32%
  8000228:	4a1c      	ldr	r2, [pc, #112]	; (800029c <WS2812_Send+0xd0>)
  800022a:	697b      	ldr	r3, [r7, #20]
- 800022c:	2103      	movs	r1, #3
+ 800022c:	211c      	movs	r1, #28
  800022e:	f822 1013 	strh.w	r1, [r2, r3, lsl #1]
 
 			indx++;
@@ -533,57 +533,56 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
  8000456:	f44f 3380 	mov.w	r3, #65536	; 0x10000
  800045a:	63bb      	str	r3, [r7, #56]	; 0x38
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL2;
- 800045c:	2300      	movs	r3, #0
- 800045e:	63fb      	str	r3, [r7, #60]	; 0x3c
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+ 800045c:	f44f 13e0 	mov.w	r3, #1835008	; 0x1c0000
+ 8000460:	63fb      	str	r3, [r7, #60]	; 0x3c
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
- 8000460:	f107 0318 	add.w	r3, r7, #24
- 8000464:	4618      	mov	r0, r3
- 8000466:	f000 ff8f 	bl	8001388 <HAL_RCC_OscConfig>
- 800046a:	4603      	mov	r3, r0
- 800046c:	2b00      	cmp	r3, #0
- 800046e:	d001      	beq.n	8000474 <SystemClock_Config+0x56>
+ 8000462:	f107 0318 	add.w	r3, r7, #24
+ 8000466:	4618      	mov	r0, r3
+ 8000468:	f000 ff8e 	bl	8001388 <HAL_RCC_OscConfig>
+ 800046c:	4603      	mov	r3, r0
+ 800046e:	2b00      	cmp	r3, #0
+ 8000470:	d001      	beq.n	8000476 <SystemClock_Config+0x58>
   {
     Error_Handler();
- 8000470:	f000 f8fa 	bl	8000668 <Error_Handler>
+ 8000472:	f000 f8f9 	bl	8000668 <Error_Handler>
   }
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
- 8000474:	230f      	movs	r3, #15
- 8000476:	607b      	str	r3, [r7, #4]
+ 8000476:	230f      	movs	r3, #15
+ 8000478:	607b      	str	r3, [r7, #4]
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
- 8000478:	2302      	movs	r3, #2
- 800047a:	60bb      	str	r3, [r7, #8]
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV2;
- 800047c:	2380      	movs	r3, #128	; 0x80
- 800047e:	60fb      	str	r3, [r7, #12]
+ 800047a:	2302      	movs	r3, #2
+ 800047c:	60bb      	str	r3, [r7, #8]
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+ 800047e:	2300      	movs	r3, #0
+ 8000480:	60fb      	str	r3, [r7, #12]
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
- 8000480:	f44f 6380 	mov.w	r3, #1024	; 0x400
- 8000484:	613b      	str	r3, [r7, #16]
+ 8000482:	f44f 6380 	mov.w	r3, #1024	; 0x400
+ 8000486:	613b      	str	r3, [r7, #16]
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
- 8000486:	2300      	movs	r3, #0
- 8000488:	617b      	str	r3, [r7, #20]
+ 8000488:	2300      	movs	r3, #0
+ 800048a:	617b      	str	r3, [r7, #20]
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
- 800048a:	1d3b      	adds	r3, r7, #4
- 800048c:	2100      	movs	r1, #0
- 800048e:	4618      	mov	r0, r3
- 8000490:	f001 f9fa 	bl	8001888 <HAL_RCC_ClockConfig>
- 8000494:	4603      	mov	r3, r0
- 8000496:	2b00      	cmp	r3, #0
- 8000498:	d001      	beq.n	800049e <SystemClock_Config+0x80>
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+ 800048c:	1d3b      	adds	r3, r7, #4
+ 800048e:	2102      	movs	r1, #2
+ 8000490:	4618      	mov	r0, r3
+ 8000492:	f001 f9f9 	bl	8001888 <HAL_RCC_ClockConfig>
+ 8000496:	4603      	mov	r3, r0
+ 8000498:	2b00      	cmp	r3, #0
+ 800049a:	d001      	beq.n	80004a0 <SystemClock_Config+0x82>
   {
     Error_Handler();
- 800049a:	f000 f8e5 	bl	8000668 <Error_Handler>
+ 800049c:	f000 f8e4 	bl	8000668 <Error_Handler>
   }
 }
- 800049e:	bf00      	nop
- 80004a0:	3740      	adds	r7, #64	; 0x40
- 80004a2:	46bd      	mov	sp, r7
- 80004a4:	bd80      	pop	{r7, pc}
-	...
+ 80004a0:	bf00      	nop
+ 80004a2:	3740      	adds	r7, #64	; 0x40
+ 80004a4:	46bd      	mov	sp, r7
+ 80004a6:	bd80      	pop	{r7, pc}
 
 080004a8 <MX_TIM1_Init>:
   * @brief TIM1 Initialization Function

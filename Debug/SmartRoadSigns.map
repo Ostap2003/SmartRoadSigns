@@ -2174,9 +2174,8 @@ LOAD c:/st/stm32cubeide_1.6.1/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.exte
  .text.WS_Set.6011
                 0x00000000080003cc       0x52 Core/Src/main.o
  .text.SystemClock_Config
-                0x000000000800041e       0x88 Core/Src/main.o
+                0x000000000800041e       0x8a Core/Src/main.o
                 0x000000000800041e                SystemClock_Config
- *fill*         0x00000000080004a6        0x2 
  .text.MX_TIM1_Init
                 0x00000000080004a8      0x140 Core/Src/main.o
  .text.MX_DMA_Init
