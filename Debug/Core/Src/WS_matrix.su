@@ -1,0 +1,12 @@
+WS_matrix.c:19:6:Set_LED	24	static
+WS_matrix.c:30:6:build_num	32	static
+WS_matrix.c:61:6:WS_Reset	16	static
+WS_matrix.c:68:6:WS_Set	24	static
+WS_matrix.c:82:6:WS_FullSet	16	static
+WS_matrix.c:90:6:buildExclamationIntoNumbers	16	static
+WS_matrix.c:117:6:showVelocity	32	static
+WS_matrix.c:143:6:WS_img_set	24	static
+WS_matrix.c:156:6:WS_add_number_to_sign_left	32	static
+WS_matrix.c:176:6:WS_add_number_to_sign_right	32	static
+WS_matrix.c:193:6:WS_set_sign_partly	32	static
+WS_matrix.c:208:6:WS_set_sign	16	static

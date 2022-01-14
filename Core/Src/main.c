@@ -1,27 +1,29 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
+ * All rights reserved.</center></h2>
+ *
+ * This software component is licensed by ST under BSD 3-Clause license,
+ * the "License"; You may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at:
+ *                        opensource.org/licenses/BSD-3-Clause
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+#include "WS_matrix.h"
 
 /* USER CODE END Includes */
 
@@ -41,7 +43,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim1;
-DMA_HandleTypeDef hdma_tim1_ch1;
+TIM_HandleTypeDef htim4;
+DMA_HandleTypeDef hdma_tim4_ch1;
 
 /* USER CODE BEGIN PV */
 
@@ -52,6 +55,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -59,68 +63,201 @@ static void MX_TIM1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-#define MAX_LED 64 // max LEDs that we have in a cascade
 
+/* Speed radar code START*/
+volatile uint32_t tim1_overflows = 0;
 
-uint8_t LED_Data[MAX_LED][4];  // matrix of 4 columns, number of rows = number of LEDs we have
-
-int datasentflag=0;  // to make sure that the dma does not send another data while the first data is still transmitted
-
-
-void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)  // this callback is called when data transmission is finished
-{
-	HAL_TIM_PWM_Stop_DMA(&htim1, TIM_CHANNEL_1);  // stop dma, when the transmission is finished
-	datasentflag = 1;
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim) {
+    if (htim -> Instance == TIM1) {
+        ++tim1_overflows;
+    }
 }
 
-void Set_LED (int LEDnum, int Red, int Green, int Blue)
-{
-	LED_Data[LEDnum][0] = LEDnum;
-	LED_Data[LEDnum][1] = Green;  // store green first as ws2821b requires this order (g,r,b)
-	LED_Data[LEDnum][2] = Red;
-	LED_Data[LEDnum][3] = Blue;
+extern void initialise_monitor_handles(void);  // for semihosting
+
+const unsigned long analysis_every = 500;  // ms
+const unsigned int blink_every = 30;
+
+#define VelBufferSize 40 // max LEDs that we have in a cascade
+
+uint32_t RiseVal = 0;
+uint32_t FallVal = 0;
+uint32_t Difference = 0;
+int Rise_Captured = 0;
+float velocities[VelBufferSize];
+int currVelocityIndex = 0;
+
+int NumOfVelocities=0;
+
+int Rises[VelBufferSize];
+int Falls[VelBufferSize];
+float Frequencies[VelBufferSize];
+volatile int Differences[VelBufferSize];
+uint32_t timOverflows[VelBufferSize];
+
+void pushVelocity(float currVelocity, int currRise, int currFall, int currDifference, float currFrequnecy, uint32_t currOverflows) {
+		velocities[currVelocityIndex] = currVelocity;
+		Rises[currVelocityIndex] = currRise;
+		Falls[currVelocityIndex] = currFall;
+		Differences[currVelocityIndex] = currDifference;
+		Frequencies[currVelocityIndex] = currFrequnecy;
+		timOverflows[currVelocityIndex] = currOverflows;
+		currVelocityIndex++;
+		if (currVelocityIndex >VelBufferSize-1){
+			currVelocityIndex = 0;
+		}
+}
+void reloadVelBuffer() {
+	currVelocityIndex=0;
+	for(int i=0;i<VelBufferSize;i++){
+		velocities[i] = 0;
+				Rises[i] = 0;
+				Falls[i] = 0;
+				Differences[i] = 0;
+				Frequencies[i] = 0;
+				timOverflows[i] = 0;
+	}
 }
 
 
+int compare (const void * a, const void * b) {
+	  int data1 = *(int *)a, data2 = *(int *)b;
+	  if(data1 < data2) // a < b
+		return -1;
+	  else if(data1 == data2) // a == b
+		return 0;
+	  else
+		return 1;  // a > b
+}
 
-uint16_t pwmData[(24*MAX_LED)+50]; // store 24 bits for each led + 50 values for reset code
+float findAvg(float arr[40], int arr_len) {
+    // find 25, 75 percentiles
+    int lower_percentile = arr_len * 0.25;
+    int high_percentile = arr_len * 0.75;
+    float sum = 0;
+    for (int i = lower_percentile + 1; i < high_percentile; i++) {
+        sum += arr[i];
+    }
+    return sum / (arr_len / 2);
+}
+
+
+float frequency;
+float velocity;
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef * htim) // is called whenever rising or falling edge is captured
+
+{
+    if (htim -> Channel == HAL_TIM_ACTIVE_CHANNEL_1) // if the interrupt is triggered in channel 1
+    {
+        if (!Rise_Captured) // if the rise time(RiseVal) is not captured, then it is a rising edge
+        {
+            RiseVal = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+            RiseVal = HAL_GetTick(); // in miliseconds
+            Rise_Captured = 1;
+        } else {
+            FallVal = 65535 * tim1_overflows + HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+            Difference = FallVal - RiseVal; // duration of high
+
+            // 8Mhz(Clck frequency) / 8(prescaler) = 1Mhz
+            // to get frequency of signal divide 1Mhz by its duration
+            frequency = 1028500.0 / Difference;
+
+            // velocity = frequency / period_to_frequency;
+            velocity = 51308.0/Difference;
+
+            pushVelocity(velocity, RiseVal, FallVal,Difference, frequency,tim1_overflows);
+            RiseVal = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+            tim1_overflows = 0;
+            Rise_Captured=1;
+        }
+    }
+}
+
+/* Speed radar code END*/
+
+/* Matrix code START*/
+
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
+	// here we set second part of pwm_data
+	uint8_t indx = 24;
+	if (already_sent < MAX_LED + 2) {
+		uint32_t color;
+		color = ((LED_Data[curr_data_id][1]<<16) | (LED_Data[curr_data_id][2]<<8) | (LED_Data[curr_data_id][3]));
+		for (int j = 23; j >= 0; j--) {
+			if (color&(1<<j)) {
+				pwm_data[indx] = 57; // if the bit is 1, the duty cycle is 64%
+			} else {
+				pwm_data[indx] = 29;  // if the bit is 0, the duty cycle is 32%
+			}
+			indx++;
+		}
+		curr_data_id++;
+		already_sent++;
+	} else if (already_sent < MAX_LED + 2) {
+		// HERE MAX LED IN LOOP CAN BE WRONG
+		// USE 24 * 2
+		for (int i = indx; i < 48; i++) {
+			pwm_data[i] = 0;
+		}
+		already_sent++;
+	} else {
+		// transfer ended, reset all variables, stop dma
+		already_sent = 0;
+		curr_data_id = 0;
+		HAL_TIM_PWM_Stop_DMA(&htim4, TIM_CHANNEL_1);
+	}
+}
+
+
+void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim) {
+	uint8_t indx = 0;
+	if (already_sent < MAX_LED) {
+		uint32_t color;
+		color = ((LED_Data[curr_data_id][1]<<16) | (LED_Data[curr_data_id][2]<<8) | (LED_Data[curr_data_id][3]));
+
+		for (int j=23; j>=0; j--) {
+			if (color&(1<<j)) {
+				pwm_data[indx] = 57; // if the bit is 1, the duty cycle is 64%
+			} else {
+				pwm_data[indx] = 29;  // if the bit is 0, the duty cycle is 32%
+			}
+			indx++;
+		}
+		curr_data_id++;
+		already_sent++;
+	} else if (already_sent < MAX_LED + 2) {
+		for (int i = indx; i < 24; i++) {
+			pwm_data[i] = 0;
+		}
+		already_sent++;
+	}
+}
+
 
 void WS2812_Send (void)
 {
 	uint32_t indx=0;
 	uint32_t color;  //32 bit variable to store 24 bits of color
 
+	for (uint16_t i = 0; i < 2; i++) {
+		color = ((LED_Data[curr_data_id][1]<<16) | (LED_Data[curr_data_id][2]<<8) | (LED_Data[curr_data_id][3])); // green red blue
 
-	for (int i= 0; i<MAX_LED; i++)  // iterate through all of the LEDs
-	{
-
-		color = ((LED_Data[i][1]<<16) | (LED_Data[i][2]<<8) | (LED_Data[i][3])); // green red blue
-
-
-		for (int i=23; i>=0; i--) // iterate through the 24 bits which specify the color
-		{
-			if (color&(1<<i))
-			{
-				pwmData[indx] = 57; // if the bit is 1, the duty cycle is 64%
+		for (int j=23; j>=0; j--) {
+			if (color&(1<<j)) {
+				pwm_data[indx] = 57; // if the bit is 1, the duty cycle is 64%
+			} else {
+				pwm_data[indx] = 29;  // if the bit is 0, the duty cycle is 32%
 			}
-
-			else pwmData[indx] = 28;  // if the bit is 0, the duty cycle is 32%
-
 			indx++;
 		}
-
+		curr_data_id++;
 	}
 
-	for (int i=0; i<50; i++)  // store values to keep the pulse low for 50+ us, reset code
-	{
-		pwmData[indx] = 0;
-		indx++;
-	}
-	HAL_TIM_PWM_Start_DMA(&htim1, TIM_CHANNEL_1, (uint32_t *)pwmData, indx);  // send the data to the dma
-	while (!datasentflag){};  // this flag will be set when the data transmission is finished, dma is stopped and now we can send another data
-	datasentflag = 0;
+	HAL_TIM_PWM_Start_DMA(&htim4, TIM_CHANNEL_1, (uint32_t *)pwm_data, indx);
+	already_sent += 2;
 }
-
+/* Matrix code END*/
 
 /* USER CODE END 0 */
 
@@ -154,67 +291,66 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_TIM1_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-//  for (int i=0; i<64; i++)
-//  {
-//      Set_LED(i, 255, 0, 0);
-//  }
+
+    initialise_monitor_handles();  // for semihosting
+    HAL_TIM_Base_Start_IT( & htim1);
 
 
-  int exclamation[] = {0, 0, 0, 1, 1, 0, 0, 0,
-		         	   0, 0, 0, 1, 1, 0, 0, 0,
-		         	   0, 0, 0, 1, 1, 0, 0, 0,
-		         	   0, 0, 0, 1, 1, 0, 0, 0,
-		         	   0, 0, 0, 1, 1, 0, 0, 0,
-		         	   0, 0, 0, 0, 0, 0, 0, 0,
-		         	   0, 0, 0, 1, 1, 0, 0, 0,
-		         	   0, 0, 0, 1, 1, 0, 0, 0};
-  int fourty[] = {1, 0, 1, 0, 1, 1, 1, 1,
-		         	   1, 0, 1, 0, 1, 0, 0, 1,
-		         	   1, 0, 1, 0, 1, 0, 0, 1,
-		         	   1, 1, 1, 0, 1, 0, 0, 1,
-		         	   0, 0, 1, 0, 1, 0, 0, 1,
-		         	   0, 0, 1, 0, 1, 0, 0, 1,
-		         	   0, 0, 1, 0, 1, 0, 0, 1,
-		         	   0, 0, 1, 0, 1, 1, 1, 1};
+    /* Speed radar code START */
+    HAL_TIM_IC_Start_IT( & htim1, TIM_CHANNEL_1); // start input capture in interrupt mode for timer 1
+    __HAL_TIM_ENABLE_IT( & htim1, TIM_IT_CC1);
+    uint32_t analysis_next = HAL_GetTick();
 
+    /* Speed radar code END */
 
-  void WS_Reset(void){
-  	for (int i=0; i < 64; i++){
-      Set_LED(i, 0, 0, 0);
-    }
-  	WS2812_Send();
-  }
+//    WS_set_sign(12);
+//    WS_img_set(sign_img);
 
-  void WS_Set(int matrix[]){
-      for (int i=0; i < 64; i++){
-        if (matrix[i]==1){
-          Set_LED(i, 254, 0, 0);
-        }
-        else {
-          Set_LED(i, 0, 0, 0);
-        }
-      }
-      WS2812_Send();
-  }
-//  WS_Set(fourty);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+    while (1) {
 
-	  WS_Set(exclamation);
-	  HAL_Delay(200);
+    	        if (HAL_GetTick() >= analysis_next) {
+    	            __HAL_TIM_DISABLE_IT( & htim1, TIM_IT_CC1);
+    	            Rise_Captured =0;
+
+    	            qsort (velocities, VelBufferSize, sizeof(float), compare);
+    	            float avgVel = findAvg(&velocities, VelBufferSize);
+    	            printf("AvgVel: %.2f \n", avgVel);
 
 
-	  WS_Reset();
-	  HAL_Delay(200);
+    	            printf("Velocities: \n [");
+    	            for (int i = 0; i < VelBufferSize; i ++) {
+    	              printf("%.2f, ", velocities[i]);
+    	            }
+    	            printf("]\n\n");
+
+    	            printf("Freq: \n [");
+
+
+					for (int i = 0; i < VelBufferSize; i ++) {
+					  printf("%.2f, ", Frequencies[i]);
+					}
+					printf("]\n\n");
+
+    	            reloadVelBuffer();
+
+    	            // showVelocity(avgVel);
+    	            // WS_set_sign(avgVel);
+
+    	            analysis_next = HAL_GetTick() + analysis_every;
+
+    	            __HAL_TIM_ENABLE_IT( & htim1, TIM_IT_CC1);
+    	        }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+    }
   /* USER CODE END 3 */
 }
 
@@ -270,16 +406,15 @@ static void MX_TIM1_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+  TIM_IC_InitTypeDef sConfigIC = {0};
 
   /* USER CODE BEGIN TIM1_Init 1 */
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
+  htim1.Init.Prescaler = 72-1;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 90-1;
+  htim1.Init.Period = 65535;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -292,7 +427,7 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  if (HAL_TIM_IC_Init(&htim1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -302,32 +437,76 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
-  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
-  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
-  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
-  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
-  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+  sConfigIC.ICFilter = 0;
+  if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
   /* USER CODE BEGIN TIM1_Init 2 */
 
   /* USER CODE END TIM1_Init 2 */
-  HAL_TIM_MspPostInit(&htim1);
+
+}
+
+/**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 0;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 90-1;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+  HAL_TIM_MspPostInit(&htim4);
 
 }
 
@@ -341,9 +520,9 @@ static void MX_DMA_Init(void)
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
-  /* DMA1_Channel2_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
+  /* DMA1_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
 
 }
 
@@ -354,10 +533,23 @@ static void MX_DMA_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : PC13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
 }
 
@@ -372,11 +564,9 @@ static void MX_GPIO_Init(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+    /* User can add his own implementation to report the HAL error return state */
+    __disable_irq();
+    while (1) {}
   /* USER CODE END Error_Handler_Debug */
 }
 
@@ -391,8 +581,8 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+    /* User can add his own implementation to report the file name and line number,
+       ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
