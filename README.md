@@ -1,8 +1,8 @@
 # SmartRoadSigns
 
 ## Aim of the project
-In Ukraine there is a big problem of car accidents due to speeding on the roeds. 35% of car accidents injuries happened due to speeding (2020 ststistics)
-More than 50% of road deaths happened du to speeding in Ukraine in 2020.
+In Ukraine there is a big problem of car accidents due to speeding on the roads. 35% of car accidents injuries happened due to speeding (2020 ststistics)
+More than 50% of road deaths happened due to speeding in Ukraine in 2020.
 One of problems can be that drivers don't notice appropriate signs and as a result don't follow restrictions and rules on roads.
 What is one of possible solutions?
 We made a sign that shows both the sign with speed limiting and the current velocity of the vehicle approaching the sign. 
@@ -73,13 +73,11 @@ The usage of custom images to display on our matrices(it will be displayed on th
 Pillow provides the ability to chose amongst several compressiom algorithms. After testing them on several road signs and considering the fact that the text, images, and borders on the signs must be concrete and clear, with high visibility from afar, we chose to use Nearest-Neighbor algorithm. It generally provides enough contrast, minimal color fuzziness, and sufficiently readable text.
 ![AlgoComparison](https://github.com/Ostap2003/SmartRoadSigns/blob/main/img/compressionAlgoComparison.jpg)
 
-After resizing, the image iss plit in half vertically because of the way our matrices are physically connected. The right half must be flipped both horizontally and vertically to be properly displayed on the matrices.
+After resizing, the image is split in half vertically because of the way our matrices are physically connected. The right half must be flipped both horizontally and vertically to be properly displayed on the matrices.
 
 Using numpy we create a list of pixels from the PIL.Image object. Then, flatten it using itertools.chain to sort and work with it more comfortably in the future.
 
 Also, the brightness of the image could decreased by the user-configurable factor(could be used to save the power, or to fit in better with the time of the day).
-
-## Demo
 
 ## Team
 - [Ustym Hanyk](https://github.com/UstymHanyk)
