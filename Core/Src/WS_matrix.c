@@ -217,13 +217,13 @@ void WsSetSignPartly(int from) {
 void WsSetSign(int currVelocity) {
 	WsSetSignPartly(0);
     int firstDigitOfLimit = fmod((speedLimit / 10), 10);
-    	WsAddNumberToSignLeft(1);
+    	WsAddNumberToSignLeft(firstDigitOfLimit);
 	// two matrices are ready
 	showVelocity(currVelocity);
 	// four matrices are ready
 	WsSetSignPartly(256);
 	int secondDigitOfLimit = fmod(speedLimit, 10);
-	WsAddNumberToSignRight(0);
+	WsAddNumberToSignRight(secondDigitOfLimit);
 
 	WS2812_Send();
 }
