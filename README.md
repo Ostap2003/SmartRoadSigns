@@ -74,6 +74,11 @@ Pillow provides the ability to chose amongst several compressiom algorithms. Aft
 ![AlgoComparison](https://github.com/Ostap2003/SmartRoadSigns/blob/main/img/compressionAlgoComparison.jpg)
 
 After resizing, the image iss plit in half vertically because of the way our matrices are physically connected. The right half must be flipped both horizontally and vertically to be properly displayed on the matrices.
+
+Using numpy we create a list of pixels from the PIL.Image object. Then, flatten it using itertools.chain to sort and work with it more comfortably in the future.
+
+Also, the brightness of the image could decreased by the user-configurable factor(could be used to save the power, or to fit in better with the time of the day).
+
 ## Demo
 
 ## Team
