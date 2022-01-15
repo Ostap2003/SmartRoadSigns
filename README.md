@@ -20,8 +20,16 @@ The sign consists of radar and LED matrices that display information to the driv
 Ensure to have all required components for the project
 
 Download STM32 Cube IDE (version 1.6.1).<br>
-Clone this repository, must be cloned to ```~/STM32CubeIDE/workspace_1.6.1/```.<br>
-Go to *File/Open Project from File System/*, choose already existing cloned folder.
+Clone this repository<br>
+In the IDE got to *File/New/STM32 Project from an Existing STM32CubeMX Configuration File (.ioc)*
+- Then replace generated ```Core/src/main.c``` with cloned version of the file
+- Add ```Core/Src/WS_matrix.c``` file to ```Core/src/```
+- Add ```Core/Inc/WS_matrix.h``` file to ```Core/inc/```
+- Add ```Core/Inc/additional_signs.h``` file to ```Core/inc/```
+- Add ```Core/Inc/digits.h``` file to ```Core/inc/```
+- Add ```Core/Inc/sign_part.h``` file to ```Core/inc/```
+
+And now the project is set up.
 
 ## Usage
 After succesful compilation of the project. Flash the microcontroller. Everything should work properly. On the upper four matrices the sign fill be displayed.
