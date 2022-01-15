@@ -19,9 +19,9 @@ The sign consists of radar and LED matrices that display information to the driv
 ## Download and use
 Ensure to have all required components for the project
 
-Download STM32 Cube IDE (version 1.6.1).
-Clone this repository, must be cloned to ```~/STM32CubeIDE/workspace_1.6.1/```.
-Go to *File/Open Project from File System/* choose already existing cloned folder.
+Download STM32 Cube IDE (version 1.6.1).<br>
+Clone this repository, must be cloned to ```~/STM32CubeIDE/workspace_1.6.1/```.<br>
+Go to *File/Open Project from File System/*, choose already existing cloned folder.
 
 ## Usage
 After succesful compilation of the project. Flash the microcontroller. Everything should work properly. On the upper four matrices the sign fill be displayed.
