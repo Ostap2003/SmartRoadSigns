@@ -8,10 +8,10 @@ What is one of possible solutions?
 We made a sign that shows both the sign with speed limiting and the current velocity of the vehicle approaching the sign. 
 The sign consists of radar and LED matrices that display information to the driver.
 
-## Details
-[WS2812B](https://cdn-shop.adafruit.com/datasheets/WS2812B.pdf) - LED matrix (6x)
-[HB100](https://www.limpkin.fr/public/HB100/HB100_Microwave_Sensor_Module_Datasheet.pdf) - Microwawe Sensor, works on a Doppler effect.
-STM32F103C8 (Blue pill) - microcontroller
+## Components
+- [WS2812B](https://cdn-shop.adafruit.com/datasheets/WS2812B.pdf) - LED matrix (6x)
+- [HB100](https://www.limpkin.fr/public/HB100/HB100_Microwave_Sensor_Module_Datasheet.pdf) - Microwawe Sensor, works on a Doppler effect.
+- STM32F103C8 (Blue pill) - microcontroller
 
 ### IDE's
 [STM32 Cube IDE](https://www.st.com/en/development-tools/stm32cubeide.html) (version 1.6.1)
@@ -30,7 +30,8 @@ The speed limit can be set in a special function - ```set_speed_limit(int limit)
 If target object is moving towards sign with velocity greater than set speed limit, then current speed will be dispalyed diferently: 
 - color of digits changes to red
 - two exclamation points appear on the right and left side of speed display
-If target object is moving with velocity <= to set speed limit, then:
+
+If target object is moving with velocity <= speed limit, then:
 - color of digits is green
 
 Additionlly the on matrices different signs can be displayed. 
