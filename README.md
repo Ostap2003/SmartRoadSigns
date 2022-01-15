@@ -10,7 +10,7 @@ The sign consists of radar and LED matrices that display information to the driv
 
 ## Components
 - [WS2812B](https://cdn-shop.adafruit.com/datasheets/WS2812B.pdf) - LED matrix (6x)
-- [HB100](https://www.limpkin.fr/public/HB100/HB100_Microwave_Sensor_Module_Datasheet.pdf) - Microwawe Sensor, works on a Doppler effect.
+- [HB100](https://www.limpkin.fr/public/HB100/HB100_Microwave_Sensor_Application_Note.pdf) - Microwawe Sensor, works on a Doppler effect.
 - STM32F103C8 (Blue pill) - microcontroller
 
 ### IDE's
