@@ -26,7 +26,7 @@ Go to *File/Open Project from File System/* choose already existing cloned folde
 ## Usage
 After succesful compilation of the project. Flash the microcontroller. Everything should work properly. On the upper four matrices the sign fill be displayed.
 The bottom two matrices will show current speed of the object that is moving to the sign.
-The speed limit can be set in a special function - ```set_speed_limit(int limit)```, which is called before the main while loop.
+The speed limit can be set in a special function - ```setSpeedLimit(int limit)```, which is called before the main while loop.
 If target object is moving towards sign with velocity greater than set speed limit, then current speed will be dispalyed diferently: 
 - color of digits changes to red
 - two exclamation points appear on the right and left side of speed display
@@ -37,8 +37,8 @@ If target object is moving with velocity <= speed limit, then:
 Additionlly the on matrices different signs can be displayed. 
 In the project root is located folder with python code that recieves image, crops and pixelates it and writes to file RGB representation of the sign. 
 In order to dispaly signs that are generated this way:
-- comment out the call of ```WS_set_sign(avgVel)``` function
-- uncomment ```WS_img_set(sign)```
+- comment out the call of ```WsSetSign(avgVel)``` function
+- uncomment ```WsImgSet(sign)```
 After recompile the project and flash the microcontroller.
 
 ## Project scheme
