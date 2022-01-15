@@ -15,7 +15,7 @@ def decreaseBrightnessBy(pixelList: list, decreasmentFactor: int) -> list:
 
 def writeToFile(destinationFilePath: str, imageName: str, imageList: list):
     file = open(f"{destinationFilePath}", "a")
-    file.write(f"{imageName} [256][3] = {{")
+    file.write(f"int {imageName} [256][3] = {{")
     for pixelColors in imageList:
         file.write(f"{{ {','.join(list(map(str, pixelColors)))} }}, \n")
     file.write("};\n")
