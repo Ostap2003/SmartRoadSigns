@@ -9,12 +9,12 @@ We made a sign that shows both the sign with speed limiting and the current velo
 The sign consists of radar and LED matrices that display information to the driver.
 
 ## Details
-WS2812B - LED matrix (6x)
-HB100 - Microwawe Sensor, works on a Doppler effect.
+[WS2812B](https://cdn-shop.adafruit.com/datasheets/WS2812B.pdf) - LED matrix (6x)
+[HB100](https://www.limpkin.fr/public/HB100/HB100_Microwave_Sensor_Module_Datasheet.pdf) - Microwawe Sensor, works on a Doppler effect.
 STM32F103C8 (Blue pill) - microcontroller
 
 ### IDE's
-STM32 Cube IDE (version 1.6.1)
+[STM32 Cube IDE](https://www.st.com/en/development-tools/stm32cubeide.html) (version 1.6.1)
 
 ## Download and use
 Ensure to have all required components for the project
@@ -46,6 +46,7 @@ After recompile the project and flash the microcontroller.
 ### How matrices are set
 All matrices are connected between each other. Data is sent using DMA. Firstly we write to LED_Data array all data for each LED, so it has its id (from 0 to 384) and RGB values (each value from 0 to 255). Then from this data we pass value to matrices using pwm and pwm_data array where all values for RGB are represented as duty cycles.
 the size of ```pwm_data = 24 * 2``` so we can send data to two leds, this was done to decrease memory usage. Firstly we are passing data to first LED, after first LED is set, we get interrupt from DMA that transfer is half done, in the iterrupt we rewrite first 24 values in pwm_data for the next transfer, while data from \[24-48) array elemets is being passed to the next LED. After all data from pwm_data is transfered we get another interrupt from DMA, so in this interrrupt we set values in pwm_data from \[24-48) for the future transfer.
+*(Idea was taken [here](https://www.thevfdcollective.com/blog/stm32-and-sk6812-rgbw-led))*
 
 ### How speed is measured
 
