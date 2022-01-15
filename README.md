@@ -50,6 +50,13 @@ the size of ```pwm_data = 24 * 2``` so we can send data to two leds, this was do
 *(Idea was taken [here](https://www.thevfdcollective.com/blog/stm32-and-sk6812-rgbw-led))*
 
 ### How speed is measured
+FOUT of the HB100 sensor is connected to the pin A8, which is configured as a Timer 1 with enabled input capture interruts. They are triggered on every rising edge. Using these interrupts we measure the period length of the signal from which calculate the velocity. From the [datasheet] (https://www.limpkin.fr/public/HB100/HB100_Microwave_Sensor_Application_Note.pdf) the movement detection frequency of HB100 is 10.525 Ghz, Fd with Velocity in km/h is 19.49, 10.525Ghz / 19.49 = 51308. To get the velocity we divide 51308 by period length in microseconds and get velocity in km/h . Velocities are stored in a buffer, which is an array that holds ```VEL_BUFFER_SIZE``` (currently 100) values. The buffer resets every ```analysisEvery``` miliseconds.
+
+Every ```analysisEvery``` (currently 200) miliseconds, we calculate the *"truncated mean"* of the velocity buffer using ```findAvg()``` function. Truncated mean is a statistical measure, which is calculated by discarding high and low ends(under 25%, and over 75% in our case) of the sorted sample and then calculating the mean.
+
+Although the buffer has a constant size ```VEL_BUFFER_SIZE``` (currently 100), truncated mean is calculated only on non-zero values(i.e. if we got only 25 velocities, then we will calculate truncated mean only of these 25 values discarding the rest 75 null slots of the array).
+
+During the analysis time in the while loop of the main function, interrupts are temporarily disabled to not interfere with the rest of the program. After successfuly performing all of the needed calculations and sending the data to the matrix, the interrupts are resumed.
 
 ## Demo
 
