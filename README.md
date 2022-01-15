@@ -73,7 +73,7 @@ The usage of custom images to display on our matrices(it will be displayed on th
 Pillow provides the ability to chose amongst several compressiom algorithms. After testing them on several road signs and considering the fact that the text, images, and borders on the signs must be concrete and clear, with high visibility from afar, we chose to use Nearest-Neighbor algorithm. It generally provides enough contrast, minimal color fuzziness, and sufficiently readable text.
 ![AlgoComparison](https://github.com/Ostap2003/SmartRoadSigns/blob/main/img/compressionAlgoComparison.jpg)
 
-After resizing, teh image is plit in half vertically because of the way our matrices are physically connected. The right half must be flipped both horizontally and vertically to be properly displayed on the matrices.
+After resizing, the image iss plit in half vertically because of the way our matrices are physically connected. The right half must be flipped both horizontally and vertically to be properly displayed on the matrices.
 ## Demo
 
 ## Team
