@@ -37,8 +37,8 @@ If target object is moving with velocity <= speed limit, then:
 Additionlly the on matrices different signs can be displayed. 
 In the project root is located folder with python code that recieves image, crops and pixelates it and writes to file RGB representation of the sign. 
 In order to dispaly signs that are generated this way:
-- comment out the call of ```WS_set_sign(avgVel)``` function
-- uncomment ```WS_img_set(sign)```
+- comment out the call of ```WsSetSign(avgVel)``` function
+- uncomment ```WsImgSet(sign)```
 After recompile the project and flash the microcontroller.
 
 ## Project scheme
