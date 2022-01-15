@@ -43,7 +43,7 @@ If target object is moving with velocity <= speed limit, then:
 - color of digits is green
 
 Additionlly the on matrices different signs can be displayed. 
-In the project root is located folder with python code that recieves image, crops and pixelates it and writes to file RGB representation of the sign. 
+In the project root is located folder with python code that receives image, crops and pixelates it and writes to file RGB representation of the sign. 
 In order to dispaly signs that are generated this way:
 - comment out the call of ```WsSetSign(avgVel)``` function
 - uncomment ```WsImgSet(sign)```
@@ -66,6 +66,12 @@ Every ```analysisEvery``` (currently 200) miliseconds, we calculate the *"trunca
 Although the buffer has a constant size ```VEL_BUFFER_SIZE``` (currently 100), truncated mean is calculated only on non-zero values(i.e. if we got only 25 velocities, then we will calculate truncated mean only of these 25 values discarding the rest 75 null slots of the array).
 
 During the analysis time in the while loop of the main function, interrupts are temporarily disabled to not interfere with the rest of the program. After successfuly performing all of the needed calculations and sending the data to the matrix, the interrupts are resumed.
+
+### How the image is converted to an array of rgb values
+The usage of custom images to display on our matrices(it will be displayed on the top 4 8x8 WS2812B matrices) is implemented using Python and [Pillow](https://github.com/python-pillow/Pillow), [NumPy](https://numpy.org/) libraries.
+
+Pillow provides the ability to chose amongst several compressiom algorithms. After testing them on several road signs and considering the fact that the text, images, and borders on the signs must be concrete and clear, with high visibility from afar, we chose to use Nearest-Neighbor algorithm. It generally provides enough contrast, minimal color fuzziness, and sufficiently readable text.
+![AlgoComparison](https://github.com/Ostap2003/SmartRoadSigns/blob/main/img/compressionAlgoComparison.jpg)
 
 ## Demo
 
