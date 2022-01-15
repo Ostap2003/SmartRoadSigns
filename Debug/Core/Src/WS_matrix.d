@@ -23,8 +23,7 @@ Core/Src/WS_matrix.o: ../Core/Src/WS_matrix.c ../Core/Inc/WS_matrix.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h \
- ../Core/Inc/digits.h ../Core/Inc/sign_part.h \
- ../Core/Inc/additional_signs.h
+ ../Core/Inc/digits.h ../Core/Inc/sign_part.h
 
 ../Core/Inc/WS_matrix.h:
 
@@ -81,5 +80,3 @@ Core/Src/WS_matrix.o: ../Core/Src/WS_matrix.c ../Core/Inc/WS_matrix.h \
 ../Core/Inc/digits.h:
 
 ../Core/Inc/sign_part.h:
-
-../Core/Inc/additional_signs.h:

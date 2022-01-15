@@ -1,12 +1,7 @@
 /*
- * digits.h
- *
- *  Created on: Jan 13, 2022
- *      Author: ostap
+ * Digits to display on the matrix
  */
 
-//#ifndef INC_DIGITS_H_
-//#define INC_DIGITS_H_
 
 uint8_t digits[10][8][3] = {
         {

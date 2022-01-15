@@ -24,7 +24,7 @@
 /* USER CODE BEGIN Includes */
 
 #include "WS_matrix.h"
-
+#include "additional_signs.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -65,111 +65,140 @@ static void MX_TIM4_Init(void);
 
 
 /* Speed radar code START*/
-volatile uint32_t tim1_overflows = 0;
+volatile uint32_t tim1Overflows = 0;
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim) {
     if (htim -> Instance == TIM1) {
-        ++tim1_overflows;
+        ++tim1Overflows;
     }
 }
 
 extern void initialise_monitor_handles(void);  // for semihosting
 
-const unsigned long analysis_every = 500;  // ms
+const unsigned long analysisEvery = 200;  // ms
 const unsigned int blink_every = 30;
 
-#define VelBufferSize 40 // max LEDs that we have in a cascade
+#define VEL_BUFFER_SIZE 100 // max LEDs that we have in a cascade
 
-uint32_t RiseVal = 0;
-uint32_t FallVal = 0;
-uint32_t Difference = 0;
-int Rise_Captured = 0;
-float velocities[VelBufferSize];
+uint32_t periodStartTime = 0;
+uint32_t periodEndTime = 0;
+uint32_t periodLength = 0;
+int periodStartCaptured = 0;
+float velocities[VEL_BUFFER_SIZE];
 int currVelocityIndex = 0;
+int velArrayOccupied =0;
 
-int NumOfVelocities=0;
+// the following arrays are solely for debugging purposes(i.e. they are not used to display/calculate the velocity
+int periodStarts[VEL_BUFFER_SIZE];
+int periodEnds[VEL_BUFFER_SIZE];
+float frequencies[VEL_BUFFER_SIZE];
+volatile int periodLengths[VEL_BUFFER_SIZE];
+uint32_t timOverflows[VEL_BUFFER_SIZE];
 
-int Rises[VelBufferSize];
-int Falls[VelBufferSize];
-float Frequencies[VelBufferSize];
-volatile int Differences[VelBufferSize];
-uint32_t timOverflows[VelBufferSize];
+void pushVelocity(float currVelocity, int currRise, int currFall, int currperiodLength, float currFrequnecy, uint32_t currOverflows) {
 
-void pushVelocity(float currVelocity, int currRise, int currFall, int currDifference, float currFrequnecy, uint32_t currOverflows) {
-		velocities[currVelocityIndex] = currVelocity;
-		Rises[currVelocityIndex] = currRise;
-		Falls[currVelocityIndex] = currFall;
-		Differences[currVelocityIndex] = currDifference;
-		Frequencies[currVelocityIndex] = currFrequnecy;
+	if (currVelocity<100){  // due to the high level of noise in the HB100 radar, frequencies higher then approx. 2kHz (i.e. 100 km/h) are dismissed
+	    velocities[currVelocityIndex] = currVelocity;
+
+	    // the following arrays are solely for debugging purposes(i.e. they are not used to display/calculate the velocity
+		periodStarts[currVelocityIndex] = currRise;
+		periodEnds[currVelocityIndex] = currFall;
+		periodLengths[currVelocityIndex] = currperiodLength;
+		frequencies[currVelocityIndex] = currFrequnecy;
 		timOverflows[currVelocityIndex] = currOverflows;
 		currVelocityIndex++;
-		if (currVelocityIndex >VelBufferSize-1){
+    if (velArrayOccupied<VEL_BUFFER_SIZE){  // keep track of how many elements are in the velocity buffer
+      velArrayOccupied++;
+    }
+		if (currVelocityIndex >VEL_BUFFER_SIZE-1){  // make the buffer(array) cyclical, replace old elements with the new ones
 			currVelocityIndex = 0;
 		}
+  }
 }
 void reloadVelBuffer() {
+	// velocity buffer is reset after every "analysis" in the while loop of the main function
 	currVelocityIndex=0;
-	for(int i=0;i<VelBufferSize;i++){
+    velArrayOccupied=0;
+	for(int i=0;i<VEL_BUFFER_SIZE;i++){
 		velocities[i] = 0;
-				Rises[i] = 0;
-				Falls[i] = 0;
-				Differences[i] = 0;
-				Frequencies[i] = 0;
+				periodStarts[i] = 0;
+				periodEnds[i] = 0;
+				periodLengths[i] = 0;
+				frequencies[i] = 0;
 				timOverflows[i] = 0;
 	}
 }
 
 
-int compare (const void * a, const void * b) {
-	  int data1 = *(int *)a, data2 = *(int *)b;
-	  if(data1 < data2) // a < b
-		return -1;
-	  else if(data1 == data2) // a == b
-		return 0;
-	  else
-		return 1;  // a > b
+
+void insertionSort(float arr[], int n)
+{
+  // taken from https://www.geeksforgeeks.org/c-program-for-insertion-sort/
+    int i, j;
+    float key;
+    for (i = 1; i < n; i++) {
+        key = arr[i];
+        j = i - 1;
+
+        while (j >= 0 && arr[j] > key) {
+            arr[j + 1] = arr[j];
+            j = j - 1;
+        }
+        arr[j + 1] = key;
+    }
 }
 
-float findAvg(float arr[40], int arr_len) {
-    // find 25, 75 percentiles
-    int lower_percentile = arr_len * 0.25;
-    int high_percentile = arr_len * 0.75;
+float findAvg(float arr[VEL_BUFFER_SIZE], int arr_len) {
+    // find 25, 75 percentiles, and calculate the mean of the interval between those values
+
+    if (velArrayOccupied <4){  // assume the velocity is zero if only a few velocities are measured(this signifies low frequencies -> near zero speed)
+        return 0.0;
+    }
+
+    insertionSort(arr, velArrayOccupied-1);  // sort and perform the algorithm only on non-zero values
+
+    int lowerPercentile = velArrayOccupied * 0.25;
+    int highPercentile = velArrayOccupied * 0.75;
+
     float sum = 0;
-    for (int i = lower_percentile + 1; i < high_percentile; i++) {
+    for (int i = lowerPercentile +1; i < highPercentile; i++) {
         sum += arr[i];
     }
-    return sum / (arr_len / 2);
+
+    return sum / (velArrayOccupied / 2);
 }
+
 
 
 float frequency;
 float velocity;
 
-void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef * htim) // is called whenever rising or falling edge is captured
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef * htim) // is called whenever rising edge is captured
 
 {
     if (htim -> Channel == HAL_TIM_ACTIVE_CHANNEL_1) // if the interrupt is triggered in channel 1
     {
-        if (!Rise_Captured) // if the rise time(RiseVal) is not captured, then it is a rising edge
+        if (!periodStartCaptured)
         {
-            RiseVal = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-            RiseVal = HAL_GetTick(); // in miliseconds
-            Rise_Captured = 1;
+            periodStartTime = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+            periodStartCaptured = 1;
+            // reset previous overflows which could have built up while the Capture compare interrupts were disabled during sending data to the matrix
+            tim1Overflows = 0;
+
         } else {
-            FallVal = 65535 * tim1_overflows + HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-            Difference = FallVal - RiseVal; // duration of high
+            periodEndTime = 65535 * tim1Overflows + HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);  //
+            periodLength = periodEndTime - periodStartTime; // duration of period
 
-            // 8Mhz(Clck frequency) / 8(prescaler) = 1Mhz
+            // 72Mhz(Clck frequency) / 72(prescaler) = 1Mhz
             // to get frequency of signal divide 1Mhz by its duration
-            frequency = 1028500.0 / Difference;
+            frequency = 1028500.0 / periodLength;
 
-            // velocity = frequency / period_to_frequency;
-            velocity = 51308.0/Difference;
+            velocity = 51308.0/periodLength;
 
-            pushVelocity(velocity, RiseVal, FallVal,Difference, frequency,tim1_overflows);
-            RiseVal = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-            tim1_overflows = 0;
-            Rise_Captured=1;
+            pushVelocity(velocity, periodStartTime, periodEndTime,periodLength, frequency,tim1Overflows);
+            periodStartTime = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+            tim1Overflows = 0;  // reset the overflows as previous overflows should not be counted in the times of the future periods
+            periodStartCaptured=1;
         }
     }
 }
@@ -179,58 +208,60 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef * htim) // is called whenever 
 /* Matrix code START*/
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
-	// here we set second part of pwm_data
+	// here we set second part of pwmData
 	uint8_t indx = 24;
-	if (already_sent < MAX_LED + 2) {
+	if (alreadySent < MAX_LED + 2) {
 		uint32_t color;
-		color = ((LED_Data[curr_data_id][1]<<16) | (LED_Data[curr_data_id][2]<<8) | (LED_Data[curr_data_id][3]));
+		color = ((LedData[currDataId][1]<<16) | (LedData[currDataId][2]<<8) | (LedData[currDataId][3]));
 		for (int j = 23; j >= 0; j--) {
 			if (color&(1<<j)) {
-				pwm_data[indx] = 57; // if the bit is 1, the duty cycle is 64%
+				pwmData[indx] = 57; // if the bit is 1, the duty cycle is 64%
 			} else {
-				pwm_data[indx] = 29;  // if the bit is 0, the duty cycle is 32%
+				pwmData[indx] = 29;  // if the bit is 0, the duty cycle is 32%
 			}
 			indx++;
 		}
-		curr_data_id++;
-		already_sent++;
-	} else if (already_sent < MAX_LED + 2) {
-		// HERE MAX LED IN LOOP CAN BE WRONG
-		// USE 24 * 2
+		currDataId++;
+		alreadySent++;
+	} else if (alreadySent < MAX_LED + 2) {
+
 		for (int i = indx; i < 48; i++) {
-			pwm_data[i] = 0;
+			pwmData[i] = 0;
 		}
-		already_sent++;
+		alreadySent++;
 	} else {
 		// transfer ended, reset all variables, stop dma
-		already_sent = 0;
-		curr_data_id = 0;
+		alreadySent = 0;
+		currDataId = 0;
 		HAL_TIM_PWM_Stop_DMA(&htim4, TIM_CHANNEL_1);
+		// enable the Capture Compare interrupts, which were temporarily disabled in the while loop of the main function to not interfere with the matrix
+        __HAL_TIM_ENABLE_IT( & htim1, TIM_IT_CC1);
+
 	}
 }
 
 
 void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim) {
 	uint8_t indx = 0;
-	if (already_sent < MAX_LED) {
+	if (alreadySent < MAX_LED) {
 		uint32_t color;
-		color = ((LED_Data[curr_data_id][1]<<16) | (LED_Data[curr_data_id][2]<<8) | (LED_Data[curr_data_id][3]));
+		color = ((LedData[currDataId][1]<<16) | (LedData[currDataId][2]<<8) | (LedData[currDataId][3]));
 
 		for (int j=23; j>=0; j--) {
 			if (color&(1<<j)) {
-				pwm_data[indx] = 57; // if the bit is 1, the duty cycle is 64%
+				pwmData[indx] = 57; // if the bit is 1, the duty cycle is 64%
 			} else {
-				pwm_data[indx] = 29;  // if the bit is 0, the duty cycle is 32%
+				pwmData[indx] = 29;  // if the bit is 0, the duty cycle is 32%
 			}
 			indx++;
 		}
-		curr_data_id++;
-		already_sent++;
-	} else if (already_sent < MAX_LED + 2) {
+		currDataId++;
+		alreadySent++;
+	} else if (alreadySent < MAX_LED + 2) {
 		for (int i = indx; i < 24; i++) {
-			pwm_data[i] = 0;
+			pwmData[i] = 0;
 		}
-		already_sent++;
+		alreadySent++;
 	}
 }
 
@@ -241,21 +272,21 @@ void WS2812_Send (void)
 	uint32_t color;  //32 bit variable to store 24 bits of color
 
 	for (uint16_t i = 0; i < 2; i++) {
-		color = ((LED_Data[curr_data_id][1]<<16) | (LED_Data[curr_data_id][2]<<8) | (LED_Data[curr_data_id][3])); // green red blue
+		color = ((LedData[currDataId][1]<<16) | (LedData[currDataId][2]<<8) | (LedData[currDataId][3])); // green red blue
 
 		for (int j=23; j>=0; j--) {
 			if (color&(1<<j)) {
-				pwm_data[indx] = 57; // if the bit is 1, the duty cycle is 64%
+				pwmData[indx] = 57; // if the bit is 1, the duty cycle is 64%
 			} else {
-				pwm_data[indx] = 29;  // if the bit is 0, the duty cycle is 32%
+				pwmData[indx] = 29;  // if the bit is 0, the duty cycle is 32%
 			}
 			indx++;
 		}
-		curr_data_id++;
+		currDataId++;
 	}
 
-	HAL_TIM_PWM_Start_DMA(&htim4, TIM_CHANNEL_1, (uint32_t *)pwm_data, indx);
-	already_sent += 2;
+	HAL_TIM_PWM_Start_DMA(&htim4, TIM_CHANNEL_1, (uint32_t *)pwmData, indx);
+	alreadySent += 2;
 }
 /* Matrix code END*/
 
@@ -301,51 +332,33 @@ int main(void)
     /* Speed radar code START */
     HAL_TIM_IC_Start_IT( & htim1, TIM_CHANNEL_1); // start input capture in interrupt mode for timer 1
     __HAL_TIM_ENABLE_IT( & htim1, TIM_IT_CC1);
-    uint32_t analysis_next = HAL_GetTick();
+    uint32_t analysisNext = HAL_GetTick();
 
     /* Speed radar code END */
 
-//    WS_set_sign(12);
-//    WS_img_set(sign_img);
 
+    buildExclamationIntoNumbers();
+    setSpeedLimit(10);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
     while (1) {
 
-    	        if (HAL_GetTick() >= analysis_next) {
-    	            __HAL_TIM_DISABLE_IT( & htim1, TIM_IT_CC1);
-    	            Rise_Captured =0;
+              if (HAL_GetTick() >= analysisNext) {
+                __HAL_TIM_DISABLE_IT( & htim1, TIM_IT_CC1);
 
-    	            qsort (velocities, VelBufferSize, sizeof(float), compare);
-    	            float avgVel = findAvg(&velocities, VelBufferSize);
-    	            printf("AvgVel: %.2f \n", avgVel);
+                float avgVel = findAvg( & velocities, VEL_BUFFER_SIZE);
 
 
-    	            printf("Velocities: \n [");
-    	            for (int i = 0; i < VelBufferSize; i ++) {
-    	              printf("%.2f, ", velocities[i]);
-    	            }
-    	            printf("]\n\n");
+                reloadVelBuffer();
 
-    	            printf("Freq: \n [");
+//                WsImgSet(no_stopping_or_parking);
+                WsSetSign(avgVel);
 
-
-					for (int i = 0; i < VelBufferSize; i ++) {
-					  printf("%.2f, ", Frequencies[i]);
-					}
-					printf("]\n\n");
-
-    	            reloadVelBuffer();
-
-    	            // showVelocity(avgVel);
-    	            // WS_set_sign(avgVel);
-
-    	            analysis_next = HAL_GetTick() + analysis_every;
-
-    	            __HAL_TIM_ENABLE_IT( & htim1, TIM_IT_CC1);
-    	        }
+                analysisNext = HAL_GetTick() + analysisEvery;
+                periodStartCaptured = 0;  // discard the previous unfinished period length measurements
+              }
 
     /* USER CODE END WHILE */
 

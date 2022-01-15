@@ -35,34 +35,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := F103SemiHostedDoppler SECOND TRY
+BUILD_ARTIFACT_NAME := SmartRoadSigns-main
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX := 
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME).$(BUILD_ARTIFACT_EXTENSION)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-F103SemiHostedDoppler\ SECOND\ TRY.elf \
+SmartRoadSigns-main.elf \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-F103SemiHostedDoppler\ SECOND\ TRY.list \
+SmartRoadSigns-main.list \
 
 OBJCOPY_BIN += \
-F103SemiHostedDoppler\ SECOND\ TRY.bin \
+SmartRoadSigns-main.bin \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: F103SemiHostedDoppler\ SECOND\ TRY.elf secondary-outputs
+main-build: SmartRoadSigns-main.elf secondary-outputs
 
 # Tool invocations
-F103SemiHostedDoppler\ SECOND\ TRY.elf: $(OBJS) $(USER_OBJS) C:\Users\ostap\STM32CubeIDE\workspace_1.6.1\F103SemiHostedDoppler\ SECOND\ TRY\STM32F103C8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "F103SemiHostedDoppler SECOND TRY.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\ostap\STM32CubeIDE\workspace_1.6.1\F103SemiHostedDoppler SECOND TRY\STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="F103SemiHostedDoppler SECOND TRY.map" -Wl,--gc-sections -static -specs=rdimon.specs -lc -lrdimon --specs=nano.specs -mfloat-abi=soft -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+SmartRoadSigns-main.elf: $(OBJS) $(USER_OBJS) C:\Users\ustym\STM32CubeIDE\workspace_1.6.1\SmartRoadSigns-main\STM32F103C8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "SmartRoadSigns-main.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\ustym\STM32CubeIDE\workspace_1.6.1\SmartRoadSigns-main\STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SmartRoadSigns-main.map" -Wl,--gc-sections -static -specs=rdimon.specs -lc -lrdimon --specs=nano.specs -mfloat-abi=soft -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -71,13 +71,13 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-F103SemiHostedDoppler\ SECOND\ TRY.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "F103SemiHostedDoppler SECOND TRY.list"
+SmartRoadSigns-main.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "SmartRoadSigns-main.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
-F103SemiHostedDoppler\ SECOND\ TRY.bin: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "F103SemiHostedDoppler SECOND TRY.bin"
+SmartRoadSigns-main.bin: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "SmartRoadSigns-main.bin"
 	@echo 'Finished building: $@'
 	@echo ' '
 

@@ -1,14 +1,7 @@
 /*
- * additional_signs.h
- *
- *  Created on: Jan 13, 2022
- *      Author: ostap
+ * Additional user-generated signs. Can be displayed on the matrix using WS_img_set(nameOfTheConvertedImage)
  */
-
-#ifndef INC_ADDITIONAL_SIGNS_H_
-#define INC_ADDITIONAL_SIGNS_H_
-
-int sign_img[256][3] = {
+int no_stopping_or_parking[256][3] = {
 	{ 0,0,0 },
 	{ 0,0,0 },
 	{ 0,0,0 },
@@ -266,5 +259,3 @@ int sign_img[256][3] = {
 	{ 217,41,41 },
 	{ 217,39,39 }
 };
-
-#endif /* INC_ADDITIONAL_SIGNS_H_ */
